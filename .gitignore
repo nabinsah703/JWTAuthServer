@@ -1,0 +1,103 @@
+########################################
+# Visual Studio
+########################################
+.vs/
+.vscode/
+*.code-workspace
+
+# User-specific files
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+########################################
+# Build output
+########################################
+bin/
+obj/
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+
+########################################
+# NuGet
+########################################
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+########################################
+# ASP.NET Core
+########################################
+# Logs
+logs/
+*.log
+
+# Temp files
+*.tmp
+*.temp
+
+# Published output
+/publish/
+/wwwroot/dist/
+/wwwroot/lib/
+
+########################################
+# Config files
+########################################
+appsettings.Development.json
+appsettings.Local.json
+
+# Do NOT ignore appsettings.json (only ignore if it contains secrets)
+# appsettings.json
+
+########################################
+# IDE Specific
+########################################
+# JetBrains Rider
+.idea/
+*.iml
+
+# VS Code
+.history/
+*.VSCodeCounter
+
+########################################
+# Docker
+########################################
+# Ignore Docker build artifacts (keep Dockerfile & .dockerignore)
+*.docker-compose.override.yml
+**/*.dockershim
+
+########################################
+# HTTP Test Files
+########################################
+*.http
+
+########################################
+# Other Artifacts
+########################################
+*.db
+*.mdf
+*.ldf
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.old
+*.orig
+
+# OS Generated files
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
