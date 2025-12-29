@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using JWTAuthServer.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Swashbuckle.AspNetCore.SwaggerUI;
 
 namespace JWTAuthServer
 {
@@ -84,7 +85,10 @@ namespace JWTAuthServer
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger(); // Generates the Swagger JSON document
-                app.UseSwaggerUI(); // Enables the Swagger UI for interactive API exploration
+                app.UseSwaggerUI(options =>
+                {
+                    options.DocExpansion(DocExpansion.None);
+                }); // Enables the Swagger UI for interactive API exploration
             }
 
             // Enforce HTTPS redirection to ensure secure communication
