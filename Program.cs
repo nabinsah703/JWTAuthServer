@@ -1,4 +1,4 @@
-using JWTAuthServer.Data;
+﻿using JWTAuthServer.Data;
 using JWTAuthServer.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -14,15 +14,14 @@ namespace JWTAuthServer
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add controller services to the container and configure JSON serialization options
+            // Add controller services
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
-                    // Preserve property names as defined in the C# models (disable camelCase naming)
-                    options.JsonSerializerOptions.PropertyNamingPolicy = null;
+                    options.JsonSerializerOptions.PropertyNamingPolicy = null; // preserve C# property names
                 });
 
-            // Add services for generating Swagger/OpenAPI documentation
+            // Swagger configuration
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
@@ -37,94 +36,72 @@ namespace JWTAuthServer
                 });
 
                 c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
                 {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+                });
             });
 
-            // Configure Entity Framework Core with SQL Server using the connection string from configuration
+            // Entity Framework Core DB
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("EFCoreDBConnection")));
 
-            // Register the KeyRotationService as a hosted (background) service
-            // This service handles periodic rotation of signing keys to enhance security
+            // Hosted service for key rotation
             builder.Services.AddHostedService<KeyRotationService>();
 
-            // Configure Authentication using JWT Bearer tokens
-            builder.Services.AddAuthentication(options =>
-            {
-                // This indicates the authentication scheme that will be used by default when the app attempts to authenticate a user.
-                // Which authentication handler to use for verifying who the user is by default.
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-
-                // This indicates the authentication scheme that will be used by default when the app encounters an authentication challenge. 
-                // Which authentication handler to use for responding to failed authentication or authorization attempts.
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddJwtBearer(options =>
-            {
-                // Define token validation parameters to ensure tokens are valid and trustworthy
-                options.TokenValidationParameters = new TokenValidationParameters
+            // 🔹 Add authentication for JWT
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
                 {
-                    ValidateIssuer = true, // Ensure the token was issued by a trusted issuer
-                    ValidIssuer = builder.Configuration["Jwt:Issuer"], // The expected issuer value from configuration
-                    ValidateAudience = false, // Disable audience validation (can be enabled as needed)
-                    ValidateLifetime = true, // Ensure the token has not expired
-                    ValidateIssuerSigningKey = true, // Ensure the token's signing key is valid
-
-                    // Define a custom IssuerSigningKeyResolver to dynamically retrieve signing keys from the JWKS endpoint
-                    IssuerSigningKeyResolver = (token, securityToken, kid, parameters) =>
+                    options.TokenValidationParameters = new TokenValidationParameters
                     {
-                        //Console.WriteLine($"Received Token: {token}");
-                        //Console.WriteLine($"Token Issuer: {securityToken.Issuer}");
-                        //Console.WriteLine($"Key ID: {kid}");
-                        //Console.WriteLine($"Validate Lifetime: {parameters.ValidateLifetime}");
+                        ValidateIssuer = true,
+                        ValidIssuer = builder.Configuration["Jwt:Issuer"],
 
-                        // Initialize an HttpClient instance for fetching the JWKS
-                        var httpClient = new HttpClient();
+                        ValidateAudience = true, // set to true if you want audience validation
+                        // ValidAudience = builder.Configuration["Jwt:Audience"],
 
-                        // Synchronously fetch the JWKS (JSON Web Key Set) from the specified URL
-                        var jwks = httpClient.GetStringAsync($"{builder.Configuration["Jwt:Issuer"]}/.well-known/jwks.json").Result;
+                        ValidateLifetime = true,
+                        ClockSkew = TimeSpan.FromMinutes(5),
 
-                        // Parse the fetched JWKS into a JsonWebKeySet object
-                        var keys = new JsonWebKeySet(jwks);
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKeyResolver = (token, securityToken, kid, parameters) =>
+                        {
+                            var httpClient = new HttpClient();
+                            var jwks = httpClient.GetStringAsync($"{builder.Configuration["Jwt:Issuer"]}/.well-known/jwks.json").Result;
+                            return new JsonWebKeySet(jwks).Keys;
+                        }
+                    };
+                });
 
-                        // Return the collection of JsonWebKey objects for token validation
-                        return keys.Keys;
-                    }
-                };
-            });
+            // Authorization
+            builder.Services.AddAuthorization();
 
-            // Build the WebApplication instance based on the configured services and middleware
             var app = builder.Build();
 
-            // Enable Swagger middleware only in the development environment for API documentation and testing
+            // Swagger middleware
             if (app.Environment.IsDevelopment())
             {
-                app.UseSwagger(); // Generates the Swagger JSON document
+                app.UseSwagger();
                 app.UseSwaggerUI(options =>
                 {
                     options.DocExpansion(DocExpansion.None);
-                }); // Enables the Swagger UI for interactive API exploration
+                });
             }
 
-            // Enforce HTTPS redirection to ensure secure communication
             app.UseHttpsRedirection();
 
-            // Enable Authentication middleware to process and validate incoming JWT tokens
+            // 🔹 Must come before MapControllers
             app.UseAuthentication();
-
-            // Enable Authorization middleware to enforce access policies based on user roles and claims
             app.UseAuthorization();
 
             app.MapControllers();
