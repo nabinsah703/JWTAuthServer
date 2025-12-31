@@ -20,5 +20,8 @@ namespace JWTAuthServer.Models
         [Required]
         [MaxLength(200)]
         public string ClientURL { get; set; }
+
+        // Navigation property for refresh tokens
+        public ICollection<RefreshToken> RefreshTokens { get; set; }
     }
 }

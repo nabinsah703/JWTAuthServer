@@ -31,11 +31,25 @@ namespace JWTAuthServer.Data
                 .WithMany(r => r.UserRoles)
                 .HasForeignKey(ur => ur.RoleId);
 
+            // Configure relationships
+            // When a User is deleted, their associated refresh tokens are also deleted to maintain data integrity.
+            modelBuilder.Entity<RefreshToken>()
+                .HasOne(rt => rt.User)
+                .WithMany(u => u.RefreshTokens)
+                .HasForeignKey(rt => rt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // When a Client is deleted, their associated refresh tokens are also deleted to maintain data integrity.
+            modelBuilder.Entity<RefreshToken>()
+                .HasOne(rt => rt.Client)
+                .WithMany(c => c.RefreshTokens)
+                .HasForeignKey(rt => rt.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // Seed initial data for Roles, Users, Clients, and UserRoles.
             modelBuilder.Entity<Role>().HasData(
                 new Role { Id = 1, Name = "Admin", Description = "Admin Role" },
-                new Role { Id = 2, Name = "Editor", Description = " Editor Role" },
-                new Role { Id = 3, Name = "User", Description = "User Role" }
+                new Role { Id = 2, Name = "User", Description = "User Role" }
             );
 
             modelBuilder.Entity<Client>().HasData(
@@ -70,5 +84,8 @@ namespace JWTAuthServer.Data
 
         // DbSet representing the SigningKeys table.
         public DbSet<SigningKey> SigningKeys { get; set; }
+
+        // DbSet representing the RefreshTokens table.
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
     }
 }

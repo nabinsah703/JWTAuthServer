@@ -9,6 +9,7 @@ namespace JWTAuthServer.Models
         public int Id { get; set; }
 
         [Required]
+        [EmailAddress]
         public string Email { get; set; }
 
         [Required]
@@ -20,6 +21,10 @@ namespace JWTAuthServer.Models
         [StringLength(100)]
         public string Password { get; set; }
 
-        public ICollection<UserRole> UserRoles { get; set; } // Navigation property for many-to-many relationship with Role
+        // Navigation property for many-to-many relationship with Role
+        public ICollection<UserRole> UserRoles { get; set; }
+
+        // Navigation property for refresh tokens
+        public ICollection<RefreshToken> RefreshTokens { get; set; }
     }
 }
