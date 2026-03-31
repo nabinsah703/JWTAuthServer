@@ -1,6 +1,7 @@
 ﻿using JWTAuthServer.Data;
 using JWTAuthServer.DTOs;
 using JWTAuthServer.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -180,6 +181,91 @@ namespace JWTAuthServer.Controllers
             return token;
         }
 
+
+        // Only authenticated users can access the Logout endpoint.
+        [Authorize]
+        [HttpPost]
+        [Route("Logout")]
+        public async Task<IActionResult> Logout([FromBody] LogoutRequestDTO requestDto)
+        {
+            //  Ensures that the incoming request contains both RefreshToken and ClientId.
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            // The user ID is extracted from the access token's claims to ensure that
+            // the refresh token being revoked belongs to the authenticated user.
+            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+
+            if (userIdClaim == null)
+            {
+                return Unauthorized("Invalid access token.");
+            }
+
+            // Ensure that the refresh token being revoked belongs to the authenticated user.
+            if (!int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("Invalid user ID in access token.");
+            }
+
+            // Hash the incoming refresh token to compare with stored hash
+            var hashedToken = HashToken(requestDto.RefreshToken);
+
+            // The hashed token, ClientId and User Id are used to locate the corresponding RefreshToken entity in the database.
+            // Includes the User and Client entities for potential additional operations.
+            var storedRefreshToken = await _context.RefreshTokens
+                .Include(rt => rt.User)
+                .Include(rt => rt.Client)
+                .FirstOrDefaultAsync(rt => rt.Token == hashedToken && rt.Client.ClientId == requestDto.ClientId && rt.UserId == userId);
+
+            // Checks if the refresh token exists.
+            if (storedRefreshToken == null)
+            {
+                return Unauthorized("Invalid refresh token.");
+            }
+
+            // Ensures the token hasn't already been revoked to prevent redundant operations.
+            if (storedRefreshToken.IsRevoked)
+            {
+                return BadRequest("Refresh token is already revoked.");
+            }
+
+            // Revoke the refresh token
+            // Sets IsRevoked to true and updates the RevokedAt timestamp.
+            storedRefreshToken.IsRevoked = true;
+            storedRefreshToken.RevokedAt = DateTime.UtcNow;
+
+            if (requestDto.IsLogoutFromAllDevices)
+            {
+                // Revoke all refresh tokens for the user
+                // This is useful if you want to logout the user from all other devices.
+                var userRefreshTokens = await _context.RefreshTokens
+                    .Where(rt => rt.UserId == storedRefreshToken.UserId && !rt.IsRevoked)
+                    .ToListAsync();
+
+                foreach (var token in userRefreshTokens)
+                {
+                    token.IsRevoked = true;
+                    token.RevokedAt = DateTime.UtcNow;
+                }
+            }
+
+            //foreach (var token in userRefreshTokens)
+            //{
+            //    token.IsRevoked = true;
+            //    token.RevokedAt = DateTime.UtcNow;
+            //}
+
+            // Persists the changes to the database.
+            await _context.SaveChangesAsync();
+
+            // Returns a success message upon successful revocation.
+            return Ok(new
+            {
+                Message = "Logout successful. Refresh token has been revoked."
+            });
+        }
 
         [HttpPost("RefreshToken")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDTO requestDto)

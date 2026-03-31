@@ -67,7 +67,7 @@ namespace JWTAuthServer
                         ValidateIssuer = true,
                         ValidIssuer = builder.Configuration["Jwt:Issuer"],
 
-                        ValidateAudience = true, // set to true if you want audience validation
+                        ValidateAudience = false, // set to true if you want audience validation
                         // ValidAudience = builder.Configuration["Jwt:Audience"],
 
                         ValidateLifetime = true,
